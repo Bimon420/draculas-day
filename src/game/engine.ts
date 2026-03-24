@@ -253,15 +253,21 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
     // Boundaries
     if (next.pos.x < 0) next.pos.x = 0;
     if (next.pos.x > WORLD_WIDTH) next.pos.x = WORLD_WIDTH;
-    // Ceiling: clamp position and bounce bat downward so it doesn't get stuck
+    // Ceiling: clamp, force downward velocity and consume up-keys so bat can't stick
     if (next.pos.y < 20) {
       next.pos.y = 20;
-      next.vel.y = Math.max(next.vel.y, 1.5); // Push back down
+      next.vel.y = 2; // Always push back down, unconditionally
+      keys.delete('ArrowUp');
+      keys.delete('w');
+      keys.delete('W');
     }
-    // Ground: land and stop
+    // Ground: land, stop and consume down-keys so bat can't stick
     if (next.pos.y > GAME_HEIGHT - 60) {
       next.pos.y = GAME_HEIGHT - 60;
       next.vel.y = 0;
+      keys.delete('ArrowDown');
+      keys.delete('s');
+      keys.delete('S');
     }
 
     // Moonlight passive decay
@@ -310,7 +316,8 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
       const hasEnoughResource = next.bloodStorage >= SCREECH_COST || next.moonlight >= 20;
       if (screechPressed && now - next.lastScreech > SCREECH_COOLDOWN && hasEnoughResource) {
         // Consume keys to prevent repeat firing
-        keys.delete('q'); keys.delete('Q'); keys.delete('f'); keys.delete('F'); keys.delete('Shift');
+        keys.delete('q'); keys.delete('Q'); keys.delete('f'); keys.delete('F');
+        keys.delete('Shift'); keys.delete('ShiftLeft'); keys.delete('ShiftRight');
         next.lastScreech = now;
         // Prefer blood, fall back to moonlight
         if (next.bloodStorage >= SCREECH_COST) {
