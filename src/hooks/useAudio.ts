@@ -2,97 +2,99 @@ import { useEffect, useRef } from 'react';
 
 export type AudioTrack = 'title' | 'gameplay' | 'none';
 
-const TRACKS: Record<string, string> = {
+const TRACK_SRCS: Record<string, string> = {
   title: '/audio/title.mp3',
   gameplay: '/audio/gameplay.mp3',
 };
 
-const VOLUMES: Record<string, number> = {
+const TRACK_VOLUMES: Record<string, number> = {
   title: 0.45,
   gameplay: 0.4,
 };
 
-// Singleton audio element to survive across React strict-mode remounts
-let globalAudio: HTMLAudioElement | null = null;
-let globalInteractionCleanup: (() => void) | null = null;
-
-function getAudio(): HTMLAudioElement {
-  if (!globalAudio) {
-    globalAudio = new Audio();
-    globalAudio.loop = true;
-    globalAudio.preload = 'auto';
-  }
-  return globalAudio;
-}
-
-function clearInteractionListeners() {
-  if (globalInteractionCleanup) {
-    globalInteractionCleanup();
-    globalInteractionCleanup = null;
-  }
-}
-
-function setupInteractionRetry(audio: HTMLAudioElement) {
-  clearInteractionListeners();
-
-  const tryPlay = () => {
-    audio.play().catch(() => {/* still blocked */});
-    clearInteractionListeners();
-  };
-
-  const events = ['click', 'keydown', 'touchstart', 'pointerdown'] as const;
-  events.forEach(e => window.addEventListener(e, tryPlay, { once: false }));
-
-  globalInteractionCleanup = () => {
-    events.forEach(e => window.removeEventListener(e, tryPlay));
-  };
-}
-
 export const useAudio = (track: AudioTrack) => {
-  const trackRef = useRef<AudioTrack>('none');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const loadedTrack = useRef<AudioTrack>('none');
+  const cleanupListeners = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const audio = getAudio();
+    // Lazy-create audio element inside the effect (guaranteed before use)
+    if (!audioRef.current) {
+      const a = new Audio();
+      a.loop = true;
+      a.preload = 'auto';
+      audioRef.current = a;
+    }
 
-    // Same track already playing → nothing to do
-    if (track === trackRef.current) return;
-    trackRef.current = track;
+    const audio = audioRef.current;
 
-    clearInteractionListeners();
+    // Remove any pending interaction listeners from previous attempt
+    if (cleanupListeners.current) {
+      cleanupListeners.current();
+      cleanupListeners.current = null;
+    }
 
     if (track === 'none') {
       audio.pause();
+      loadedTrack.current = 'none';
       return;
     }
 
-    const src = TRACKS[track];
+    const src = TRACK_SRCS[track];
     if (!src) return;
 
-    // Only reload if source changed
-    const newSrc = new URL(src, window.location.href).href;
-    const currentSrc = audio.src;
-
-    audio.volume = VOLUMES[track] ?? 0.4;
-
-    if (currentSrc !== newSrc) {
+    // Load new source only when track changes
+    if (loadedTrack.current !== track) {
+      audio.pause();
       audio.src = src;
       audio.load();
+      audio.volume = TRACK_VOLUMES[track] ?? 0.4;
+      loadedTrack.current = track;
     }
 
-    const attemptPlay = () => {
-      const p = audio.play();
-      if (p) {
-        p.catch(() => {
-          // Autoplay blocked — wait for user gesture
-          setupInteractionRetry(audio);
-        });
-      }
+    // Attempt playback
+    const attempt = () => {
+      const promise = audio.play();
+      if (!promise) return; // old browsers — fire and forget
+
+      promise.catch(() => {
+        // Autoplay blocked — wait for next user gesture.
+        // Handler must be synchronous so Safari counts it as user-initiated.
+        const events = ['click', 'keydown', 'touchend', 'pointerdown'] as const;
+
+        const handler = () => {
+          events.forEach(e => window.removeEventListener(e, handler));
+          cleanupListeners.current = null;
+          audio.play().catch(() => {/* still blocked */});
+        };
+
+        events.forEach(e => window.addEventListener(e, handler, { once: true }));
+
+        cleanupListeners.current = () => {
+          events.forEach(e => window.removeEventListener(e, handler));
+        };
+      });
     };
 
-    // Small delay so the browser can start buffering
-    const t = setTimeout(attemptPlay, 100);
-    return () => clearTimeout(t);
+    attempt();
+
+    return () => {
+      // Remove interaction listeners if the track changes before user clicks
+      if (cleanupListeners.current) {
+        cleanupListeners.current();
+        cleanupListeners.current = null;
+      }
+    };
   }, [track]);
 
-  // No cleanup on unmount — audio continues (singleton pattern)
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+    };
+  }, []);
 };
