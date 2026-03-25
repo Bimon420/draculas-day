@@ -114,7 +114,7 @@ export const BloodMinigame: React.FC<BloodMinigameProps> = ({ onComplete }) => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleBite]);
+  }, [handleBite, phase, onComplete, resultScore]);
 
   const getRating = (bonus: number) => {
     if (bonus >= 270) return { label: 'SATED', color: '#dc2626', sub: 'Pure crimson ecstasy' };

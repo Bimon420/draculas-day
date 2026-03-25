@@ -544,8 +544,13 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
     requestRef.current = requestAnimationFrame(update);
   }, [saveScore]);
 
+  // Fetch scores when user logs in
   useEffect(() => {
     fetchHighScores();
+  }, [fetchHighScores]);
+
+  // Register keyboard listeners once for the lifetime of the hook
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.key);
       // Always store lowercase so Shift+W still registers as 'w'
@@ -559,17 +564,24 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    if (gameState === 'playing' || gameState === 'bloodminigame') {
-      lastTimeRef.current = 0;
-      requestRef.current = requestAnimationFrame(update);
-    }
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []); // Empty dependency array means this runs only on mount and unmount
+
+  useEffect(() => {
+    if (gameState === 'playing' || gameState === 'bloodminigame') {
+      lastTimeRef.current = 0;
+      requestRef.current = requestAnimationFrame(update);
+    } else {
+      cancelAnimationFrame(requestRef.current);
+    }
+    return () => {
       cancelAnimationFrame(requestRef.current);
     };
-  }, [update, fetchHighScores, gameState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]); // Only start/stop on gameState change; update is stable via useCallback
 
   return {
     gameState,
