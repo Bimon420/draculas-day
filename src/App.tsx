@@ -18,15 +18,14 @@ const App: React.FC = () => {
     keysRef
   } = useGame(user, isLoading);
 
-  // Detect touch device — use (pointer: coarse) only.
-  // navigator.maxTouchPoints > 0 is true on many Windows desktops and breaks mouse play.
+  // Detect a pure touch device: primary pointer is coarse AND no fine pointer (mouse/trackpad) exists.
+  // This correctly excludes Windows touch laptops (which have both coarse touch + fine mouse).
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)');
-    setIsTouchDevice(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsTouchDevice(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const isTouch = () =>
+      window.matchMedia('(pointer: coarse)').matches &&
+      !window.matchMedia('(any-pointer: fine)').matches;
+    setIsTouchDevice(isTouch());
   }, []);
 
   // Scale the game canvas to fit the viewport
@@ -46,12 +45,13 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', resize);
   }, [isTouchDevice]);
 
-  // Prevent iOS rubber-band scroll / bounce while playing
+  // Prevent iOS rubber-band scroll/bounce only on actual touch devices
   useEffect(() => {
+    if (!isTouchDevice) return;
     const prevent = (e: TouchEvent) => e.preventDefault();
     document.addEventListener('touchmove', prevent, { passive: false });
     return () => document.removeEventListener('touchmove', prevent);
-  }, []);
+  }, [isTouchDevice]);
 
   // Music: title track on start/gameover, gameplay track during play
   const activeTrack =
