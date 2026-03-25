@@ -226,30 +226,41 @@ export const GameUI: React.FC<GameUIProps> = ({
       </AnimatePresence>
 
       {/* Status HUD Bottom */}
-      <div className="mt-auto flex justify-center">
+      <div className="mt-auto flex justify-center pb-4">
         <AnimatePresence>
           {player.form === 'vampire' && (
             <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 50, opacity: 0 }}
-              className="bg-primary px-6 py-3 rounded-full font-display font-bold uppercase tracking-widest text-sm shadow-2xl flex flex-col items-center gap-1 border border-white/20"
+              initial={{ y: 50, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 20, opacity: 0, scale: 0.95 }}
+              className="bg-red-950/80 backdrop-blur-md px-8 py-4 rounded-2xl font-display font-bold uppercase tracking-[0.2em] text-xs shadow-[0_0_30px_rgba(220,38,38,0.3)] flex flex-col items-center gap-2 border border-red-500/30"
             >
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                <span>TRANSFORMED — FEASTING IN PROGRESS</span>
+              <div className="flex items-center gap-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-4 h-4 bg-white rounded-full animate-ping opacity-20" />
+                  <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_10px_#ef4444]" />
+                </div>
+                <span className="text-red-100">FEEDING IN PROGRESS</span>
               </div>
-              <span className="text-[10px] text-white/60">PRESS ESC TO ABORT</span>
+              <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded-full border border-white/5">
+                <span className="text-[9px] text-white/40 tracking-widest">PRESS</span>
+                <span className="text-[9px] text-red-400 font-black">ESC</span>
+                <span className="text-[9px] text-white/40 tracking-widest">TO ABORT</span>
+              </div>
             </motion.div>
           )}
           {gameState === 'playing' && !player.carryingMaiden && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-[10px] text-muted-foreground/40 font-display font-bold uppercase tracking-widest"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              className="bg-black/20 backdrop-blur-sm px-6 py-2 rounded-full border border-white/5 shadow-xl"
             >
-              Hover near a house balcony to lure the maiden out
+              <span className="text-[10px] text-muted-foreground/60 font-display font-bold uppercase tracking-[0.3em] flex items-center gap-3">
+                <div className="w-1 h-1 bg-primary/40 rounded-full" />
+                Hover near a house balcony to lure the maiden out
+                <div className="w-1 h-1 bg-primary/40 rounded-full" />
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
