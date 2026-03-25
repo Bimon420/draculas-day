@@ -42,6 +42,7 @@ export interface Maiden extends GameObject {
   isInside: boolean;   // true = inside house, false = lured out
   spawnPoint: Vector;
   houseX: number;      // x position of her house
+  respawnTimer: number; // 0 = ready, > 0 = respawning
 }
 
 export type VillagerType = 'peasant' | 'archer' | 'spearman';

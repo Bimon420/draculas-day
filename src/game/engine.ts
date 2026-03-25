@@ -48,7 +48,8 @@ function buildMaidens(): Maiden[] {
     isInside: true,
     houseX,
     spawnPoint: { x: houseX + 40, y: BALCONY_Y - 16 },
-    type: 'maiden'
+    type: 'maiden',
+    respawnTimer: 0
   }));
 }
 
@@ -373,10 +374,30 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
       zoom: newZoom
     });
 
-    // Lure maidens out of houses
-    if (gameStateRef.current === 'playing') {
+    // Maidens Update
+    if (gameStateRef.current === 'playing' || gameStateRef.current === 'bloodminigame') {
       setMaidens(prevMaidens => prevMaidens.map(m => {
-        if (!m || !m.pos || m.isCaptured) return m;
+        if (!m || !m.pos) return m;
+
+        // Decrement respawn timer regardless of gameState (if captured/waiting)
+        if (m.respawnTimer > 0) {
+          const nextTimer = Math.max(0, m.respawnTimer - deltaTime);
+          if (nextTimer <= 0 && m.isCaptured) {
+            // Respawn! Back to house and ready to be lured
+            return {
+              ...m,
+              isCaptured: false,
+              isInside: true,
+              pos: { ...m.spawnPoint },
+              respawnTimer: 0
+            };
+          }
+          return { ...m, respawnTimer: nextTimer };
+        }
+
+        // Only lure/capture while playing and not already captured
+        if (gameStateRef.current !== 'playing' || m.isCaptured) return m;
+
         // If inside, check if vampire is near the balcony
         if (m.isInside) {
           const doorX = m.houseX + 40;
@@ -390,6 +411,7 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
           }
           return m;
         }
+
         // Outside on balcony: check capture
         if (!next.carryingMaiden) {
           const dx = m.pos.x - next.pos.x;
@@ -404,7 +426,8 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
               carryingMaiden: true 
             }));
             setGameState('bloodminigame');
-            return { ...m, isCaptured: true };
+            // Captured! Set long respawn timer (e.g. 45 seconds)
+            return { ...m, isCaptured: true, respawnTimer: 45000 };
           }
         }
         return m;
