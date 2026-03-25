@@ -312,12 +312,15 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
       }
 
       // Blood Screech (Shift, Q or F)
-      const screechPressed = keys.has('Shift') || keys.has('q') || keys.has('Q') || keys.has('f') || keys.has('F');
+      const screechPressed = keys.has('Shift') || keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('q') || keys.has('f');
       const hasEnoughResource = next.bloodStorage >= SCREECH_COST || next.moonlight >= 20;
       if (screechPressed && now - next.lastScreech > SCREECH_COOLDOWN && hasEnoughResource) {
         // Consume keys to prevent repeat firing
-        keys.delete('q'); keys.delete('Q'); keys.delete('f'); keys.delete('F');
+        keys.delete('q'); keys.delete('f');
         keys.delete('Shift'); keys.delete('ShiftLeft'); keys.delete('ShiftRight');
+        // Clear all movement keys to prevent Shift modifier from blocking input after screech
+        keys.delete('w'); keys.delete('a'); keys.delete('s'); keys.delete('d');
+        keys.delete('ArrowUp'); keys.delete('ArrowDown'); keys.delete('ArrowLeft'); keys.delete('ArrowRight');
         next.lastScreech = now;
         // Prefer blood, fall back to moonlight
         if (next.bloodStorage >= SCREECH_COST) {
@@ -543,8 +546,15 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
 
   useEffect(() => {
     fetchHighScores();
-    const handleKeyDown = (e: KeyboardEvent) => keysRef.current.add(e.key);
-    const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.key);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysRef.current.add(e.key);
+      // Always store lowercase so Shift+W still registers as 'w'
+      keysRef.current.add(e.key.toLowerCase());
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current.delete(e.key);
+      keysRef.current.delete(e.key.toLowerCase());
+    };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
