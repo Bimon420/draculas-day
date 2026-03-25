@@ -586,6 +586,7 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
     pendingBloodScore,
     resetGame,
     fetchHighScores,
-    onBloodMinigameComplete
+    onBloodMinigameComplete,
+    keysRef  // exposed so touch controls can inject virtual key presses
   };
 };
