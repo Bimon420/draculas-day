@@ -7,21 +7,58 @@ const TRACKS: Record<string, string> = {
   gameplay: '/audio/gameplay.mp3',
 };
 
+const VOLUMES: Record<string, number> = {
+  title: 0.45,
+  gameplay: 0.4,
+};
+
+// Singleton audio element to survive across React strict-mode remounts
+let globalAudio: HTMLAudioElement | null = null;
+let globalInteractionCleanup: (() => void) | null = null;
+
+function getAudio(): HTMLAudioElement {
+  if (!globalAudio) {
+    globalAudio = new Audio();
+    globalAudio.loop = true;
+    globalAudio.preload = 'auto';
+  }
+  return globalAudio;
+}
+
+function clearInteractionListeners() {
+  if (globalInteractionCleanup) {
+    globalInteractionCleanup();
+    globalInteractionCleanup = null;
+  }
+}
+
+function setupInteractionRetry(audio: HTMLAudioElement) {
+  clearInteractionListeners();
+
+  const tryPlay = () => {
+    audio.play().catch(() => {/* still blocked */});
+    clearInteractionListeners();
+  };
+
+  const events = ['click', 'keydown', 'touchstart', 'pointerdown'] as const;
+  events.forEach(e => window.addEventListener(e, tryPlay, { once: false }));
+
+  globalInteractionCleanup = () => {
+    events.forEach(e => window.removeEventListener(e, tryPlay));
+  };
+}
+
 export const useAudio = (track: AudioTrack) => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const currentTrack = useRef<AudioTrack>('none');
+  const trackRef = useRef<AudioTrack>('none');
 
   useEffect(() => {
-    // Get or create the audio element
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.loop = true;
-    }
-    const audio = audioRef.current;
+    const audio = getAudio();
 
-    // Nothing to do if track hasn't changed
-    if (track === currentTrack.current) return;
-    currentTrack.current = track;
+    // Same track already playing → nothing to do
+    if (track === trackRef.current) return;
+    trackRef.current = track;
+
+    clearInteractionListeners();
 
     if (track === 'none') {
       audio.pause();
@@ -31,42 +68,31 @@ export const useAudio = (track: AudioTrack) => {
     const src = TRACKS[track];
     if (!src) return;
 
-    audio.src = src;
-    audio.volume = track === 'title' ? 0.45 : 0.4;
+    // Only reload if source changed
+    const newSrc = new URL(src, window.location.href).href;
+    const currentSrc = audio.src;
 
-    // Attempt autoplay — browsers may block it until a user gesture
-    const tryPlay = () => audio.play().catch(() => { /* blocked, will retry below */ });
-    tryPlay();
+    audio.volume = VOLUMES[track] ?? 0.4;
 
-    // If blocked, retry on the first user interaction
-    const onInteraction = () => {
-      tryPlay();
-      window.removeEventListener('click', onInteraction);
-      window.removeEventListener('keydown', onInteraction);
-      window.removeEventListener('touchstart', onInteraction);
-      window.removeEventListener('pointerdown', onInteraction);
-    };
-    window.addEventListener('click', onInteraction);
-    window.addEventListener('keydown', onInteraction);
-    window.addEventListener('touchstart', onInteraction);
-    window.addEventListener('pointerdown', onInteraction);
+    if (currentSrc !== newSrc) {
+      audio.src = src;
+      audio.load();
+    }
 
-    return () => {
-      window.removeEventListener('click', onInteraction);
-      window.removeEventListener('keydown', onInteraction);
-      window.removeEventListener('touchstart', onInteraction);
-      window.removeEventListener('pointerdown', onInteraction);
-    };
-  }, [track]);
-
-  // Cleanup the audio element on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-        audioRef.current = null;
+    const attemptPlay = () => {
+      const p = audio.play();
+      if (p) {
+        p.catch(() => {
+          // Autoplay blocked — wait for user gesture
+          setupInteractionRetry(audio);
+        });
       }
     };
-  }, []);
+
+    // Small delay so the browser can start buffering
+    const t = setTimeout(attemptPlay, 100);
+    return () => clearTimeout(t);
+  }, [track]);
+
+  // No cleanup on unmount — audio continues (singleton pattern)
 };
