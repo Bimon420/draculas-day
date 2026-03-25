@@ -11,20 +11,22 @@ const App: React.FC = () => {
   const { user, isAuthenticated, isLoading, login } = useAuth();
 
   const { 
-    gameState, setGameState,
+    gameState,
     player, maidens, villagers, projectiles, effects,
     camera, score, highScores, nightTimer,
     resetGame, onBloodMinigameComplete,
     keysRef
   } = useGame(user, isLoading);
 
-  // Detect touch device for showing on-screen controls
+  // Detect touch device — use (pointer: coarse) only.
+  // navigator.maxTouchPoints > 0 is true on many Windows desktops and breaks mouse play.
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
-    const check = () => setIsTouchDevice(
-      window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
-    );
-    check();
+    const mq = window.matchMedia('(pointer: coarse)');
+    setIsTouchDevice(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsTouchDevice(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   // Scale the game canvas to fit the viewport

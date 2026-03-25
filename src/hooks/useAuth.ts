@@ -9,7 +9,7 @@ export const useAuth = () => {
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
       setUser(state.user);
-      setIsLoading(state.isLoading);
+      if (!state.isLoading) setIsLoading(false); // never reset to true — avoids blank screen loop
     });
     return unsubscribe;
   }, []);
