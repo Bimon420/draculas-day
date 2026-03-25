@@ -9,55 +9,65 @@ const TRACKS: Record<string, string> = {
 
 export const useAudio = (track: AudioTrack) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const currentTrackRef = useRef<AudioTrack>('none');
+  const trackRef = useRef<AudioTrack>('none');
+  const unlockedRef = useRef(false);
 
+  // Initialize audio object once
   useEffect(() => {
-    if (track === currentTrackRef.current) return;
-
-    // Fade out then stop current track
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    currentTrackRef.current = track;
-
-    if (track === 'none') return;
-
-    const src = TRACKS[track];
-    if (!src) return;
-
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
-
-    audioRef.current.src = src;
+    audioRef.current = new Audio();
     audioRef.current.loop = true;
-    audioRef.current.volume = track === 'title' ? 0.6 : 0.55;
 
-    const playPromise = audioRef.current.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // Autoplay blocked — wait for first user interaction
-        const unlock = () => {
-          if (currentTrackRef.current === track) {
-            audioRef.current?.play().catch(() => {});
-          }
-        };
-        window.addEventListener('keydown', unlock, { once: true });
-        window.addEventListener('click', unlock, { once: true });
-        window.addEventListener('pointerdown', unlock, { once: true });
-      });
-    }
-  }, [track]);
+    const handleInteraction = () => {
+      if (!unlockedRef.current) {
+        unlockedRef.current = true;
+        // If we have a track set, try playing it now that we're unlocked
+        if (trackRef.current !== 'none') {
+          audioRef.current?.play().catch(() => {});
+        }
+        cleanup();
+      }
+    };
 
-  // Cleanup on unmount
-  useEffect(() => {
+    const cleanup = () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+
     return () => {
+      cleanup();
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = '';
         audioRef.current = null;
       }
     };
   }, []);
+
+  // Update track when it changes
+  useEffect(() => {
+    if (track === trackRef.current || !audioRef.current) return;
+    
+    trackRef.current = track;
+
+    if (track === 'none') {
+      audioRef.current.pause();
+      return;
+    }
+
+    const src = TRACKS[track];
+    if (src) {
+      audioRef.current.src = src;
+      audioRef.current.volume = track === 'title' ? 0.45 : 0.4;
+      
+      // Try playing (might be blocked)
+      audioRef.current.play().catch(() => {
+        // Silently fail if blocked, the global interaction listener will handle it
+      });
+    }
+  }, [track]);
 };
