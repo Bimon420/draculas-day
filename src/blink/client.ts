@@ -6,7 +6,7 @@ export function getProjectId(): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const match = hostname.match(/^([^.]+)\.sites\.blink\.new$/);
   // Robust fallback to current project ID
-  return match ? match[1] : 'vampire-mini-game-43gigpmr';
+  return match ? match[1] : 'draculas-day';
 }
 
 export const blink = createClient({

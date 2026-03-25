@@ -139,7 +139,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           >
             <div className="text-center space-y-2">
               <h1 className="text-7xl font-bold tracking-tighter text-primary crimson-glow uppercase italic">
-                Vampire Hunt
+                DRACULAS DAY
               </h1>
               <p className="text-muted-foreground uppercase tracking-[0.4em] font-display font-bold text-xs">
                 Haunt the Maidens • Evade the Mob
