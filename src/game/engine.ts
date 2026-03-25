@@ -159,7 +159,7 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
       health: Math.min(100, p.health + 20),
       form: 'bat',
       carryingMaiden: false,
-      transformationTimer: 30 // Shorter smoke effect duration
+      transformationTimer: 12 // Snappier smoke effect duration
     }));
     setGameState('playing');
   }, []);
@@ -444,8 +444,8 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
 
       let updatedV = { ...v };
 
-      // Attack if in range and cooldown passed (slower during feeding)
-      if (now - v.lastAttack > ATTACK_COOLDOWN / speedMult) {
+      // Attack if in range and cooldown passed (No attack during feeding/locked)
+      if (!isLocked && now - v.lastAttack > ATTACK_COOLDOWN) {
         let shouldAttack = false;
         let pSpeed = 0;
         let pDamage = PROJECTILE_DAMAGE;
@@ -516,12 +516,12 @@ export const useGame = (user: BlinkUser | null, authLoading = false) => {
           pos: { x: p.pos.x + p.vel.x, y: p.pos.y + p.vel.y }
         };
 
-        // Collision with player
+        // Collision with player (Invulnerable during minigame/transform)
         const distDx = nextP.pos.x - next.pos.x;
         const distDy = nextP.pos.y - next.pos.y;
         const distToPlayer = Math.sqrt(distDx * distDx + distDy * distDy);
 
-        if (distToPlayer < 25) {
+        if (distToPlayer < 25 && !isLocked) {
           setPlayer(pState => ({ ...pState, health: Math.max(0, pState.health - p.damage) }));
           return null; // Remove on hit
         }

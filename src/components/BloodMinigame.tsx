@@ -86,6 +86,11 @@ export const BloodMinigame: React.FC<BloodMinigameProps> = ({ onComplete }) => {
         setResultScore(bloodBonus);
         setPhase('result');
         cancelAnimationFrame(rafRef.current);
+
+        // Gamer friendly auto-advance: Finish after 1.5s
+        setTimeout(() => {
+          onComplete(bloodBonus);
+        }, 1500);
       } else {
         // Next pulse — faster
         speedRef.current = Math.min(2.5, speedRef.current + 0.4);
